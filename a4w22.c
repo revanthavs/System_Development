@@ -9,6 +9,7 @@ int monitorTime;
 int NITER;
 int debug = 1; // To see debug messages debug value = 1 else debug value = 0
 char inputlines[MAXLINES][MAXLINE];
+int linesize[MAXLINES];
 int num_lines = 0;
 
 int main(int argv, char* argc[]){
@@ -32,8 +33,9 @@ int main(int argv, char* argc[]){
 		if (strlen(line) > 1){
 			if (line[0] != '#'){
 				strcpy(inputlines[num_lines], line);
+				linesize[num_lines] = (int) strlen(inputlines[num_lines]);
 				num_lines++;
-				if (debug)	printf("length:%lu %s", strlen(line), inputlines[num_lines-1]);
+				if (debug)	printf("length:%d %s", linesize[num_lines-1], inputlines[num_lines-1]);
 			}
 		}
 		memset(line, 0, MAXLINE);
