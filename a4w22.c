@@ -4,16 +4,25 @@
 #define MAXLINE 500
 #define MAXLINES 100
 #define MAXJOBS 30
+#define MAXRESOURCES 10
 
 int monitorTime;
 int NITER;
-int debug = 1; // To see debug messages debug value = 1 else debug value = 0
 char inputlines[MAXLINES][MAXLINE];
 int linesize[MAXLINES];
 int num_lines = 0;
 char resource_line[MAXLINE];
 char job_lines[MAXJOBS][MAXLINE];
 int num_jobs = 0;
+
+struct job{
+	char name[MAXLINE];
+	int busyTime;
+	int idleTime;
+	char reources[MAXRESOURCES][MAXLINE];
+}
+
+int debug = 1; // To see debug messages debug value = 1 else debug value = 0
 
 int main(int argv, char* argc[]){
 
