@@ -2,11 +2,14 @@
 #include <string.h>
 
 #define MAXLINE 500
+#define MAXLINES 100
 
 char* inputFile;
 int monitorTime;
 int NITER;
 int debug = 1; // To see debug messages debug value = 1 else debug value = 0
+char inputlines[MAXLINES][MAXLINE];
+int num_lines = 0;
 
 int main(int argv, char* argc[]){
 
@@ -26,7 +29,13 @@ int main(int argv, char* argc[]){
 
 	memset(line, 0, MAXLINE);
 	while(fgets(line, MAXLINE, file)){
-		printf("%s\n", line);
+		if (strlen(line) > 1){
+			if (line[0] != '#'){
+				strcpy(inputlines[num_lines], line);
+				num_lines++;
+				if (debug)	printf("length:%lu %s", strlen(line), inputlines[num_lines-1]);
+			}
+		}
 		memset(line, 0, MAXLINE);
 	}
 
