@@ -142,14 +142,13 @@ int main(int argv, char* argc[]){
 	char* token = strtok(resource_line, " ");
 	char temp_res[MAXJOBS][MAXLINE]; int counter = 0;
 	if (debug) printf("%s\n", token);
-	token = strtok(NULL, " ");
+	token = strtok(NULL, " "); 
 	while(token != NULL){
 		strcpy(temp_res[counter], token);
 		if (debug) printf("%s\n", temp_res[counter]);
 		counter++;
 		token = strtok(NULL, " ");
 	}
-	if (debug) printf("%d\n", counter);
 	for (int j = 0; j < counter; j++){
 		char* ne_token = strtok(temp_res[j], ":");
 		strcpy(resources.res_names[resources.res_max], ne_token);
@@ -163,6 +162,7 @@ int main(int argv, char* argc[]){
 			printf("Name: %s, Value: %d, available: %d, holds: %d\n", resources.res_names[t1], resources.res_vals[t1], resources.available[t1], resources.holds[t1]);
 		}
 	}
+	if (debug) printf("Max resources: %d\n", resources.res_max);
 	gettimeofday(&current, 0);
 	printf("Running time= %lu msec\n", timedifference_msec(start, current));
 	return 0;
