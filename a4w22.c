@@ -111,7 +111,7 @@ void* thread_function(void* arg){
 		
 		if (debug) printf("Job: %d Done with Running state\n", index);
 		pthread_mutex_lock(&resources.f_lock);
-		if (debug) printf("Job: %d got locked to reset the resources values\n");
+		if (debug) printf("Job: %d got locked to reset the resources values\n", index);
 		for (int i = 0; i < jobs[index].num_res; i++){
 			int res_i = find_resource_index(jobs[index].res_names[i]);
 			resources.available[res_i] += jobs[index].res_vals[i];
@@ -141,7 +141,41 @@ void* thread_function(void* arg){
 // Monitor Thread Function
 void* monitor_funtion(void* arg){
 	int index = *(int *) arg;
-	if (debug) printf("Inside Monitor Thread\n");
+	struct timeval m_start, m_curr;
+	gettimeofday(&m_start, 0); gettimeofday(&m_curr, 0);
+	unsigned long difference = timedifference_msec(m_start, m_curr);
+	while(13){
+		if (difference >= monitorTime){
+			if (debug) printf("Inside Monitor Thread\n");
+			char wait_names[MAXJOBS][MAXLINE], run_names[MAXJOBS][MAXLINE], idle_names[MAXJOBS][MAXLINES];
+			int w_i = 0, r_i = 0, i_i = 0;
+			for (int i = 0; i < num_jobs; i++){
+				if (job_status[i] == 1)	strcpy(wait_names[w_i++], jobs[i].name);
+				else{
+					if (job_status[i] == 2)	strcpy(run_names[r_i++], jobs[i].name);
+					else{
+						if (job_status[i] == 3) strcpy(idle_names[i_i++], jobs[i].name);
+					}
+				}
+			}
+			printf("monitor: [WAIT] ");
+			for (int i = 0; i < w_i; i++) printf("%s ", wait_names[i]);
+			printf("\n");
+			printf("         [RUN]  ");
+			for (int i = 0; i < r_i; i++) printf("%s ", run_names[i]);
+			printf("\n");
+			printf("         [IDLE] ");
+			for (int i = 0; i < i_i; i++) printf("%s ", idle_names[i]);
+			printf("\n");
+			gettimeofday(&m_start, 0); gettimeofday(&m_curr, 0);
+			difference = timedifference_msec(m_start, m_curr);
+		}
+		else{
+			gettimeofday(&m_curr, 0);
+			difference = timedifference_msec(m_start, m_curr);
+		}
+	}
+
 	// TODO: Need to be careful here
 	return NULL;
 }
