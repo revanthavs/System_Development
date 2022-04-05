@@ -43,6 +43,8 @@ int counters[MAXJOBS] = {0};
 int job_status[MAXJOBS] = {3};
 int WAIT = 1, RUN = 2, IDLE = 3;
 
+unsigned long waits[MAXJOBS] = {0};
+
 pthread_t thread_id[MAXJOBS];
 
 struct timeval start, current;
@@ -53,10 +55,86 @@ unsigned long timedifference_msec(struct timeval start, struct timeval current){
 	return (current.tv_sec - start.tv_sec) * 1000000 + current.tv_usec - start.tv_usec;
 }
 
+int find_resource_index(char name[MAXLINE]){
+	for (int i = 0; i < resources.res_max; i++){
+		if (strcmp(resources.res_names[i], name) == 0)
+			return i;
+	}
+	return -1;
+}
+
+// TODO: Need to be careful with blocking calls pthread_mutex_lock && pthread_mutex_unlock
 // Job Thread Function
 void* thread_function(void* arg){
 	int index = *(int *) arg;
 	if (debug) printf("Inside Thread %d\n", index);
+	while(counters[index] != NITER){
+		struct timeval wait_s, wait_e;
+		gettimeofday(&wait_s, 0);
+		try_again:
+		job_status[index] = WAIT;
+		if (debug) printf("Job: %d trying for lock\n", index);
+		pthread_mutex_lock(&resources.f_lock);
+		if (debug) printf("Job: %d got locked\n", index);
+		int r_checker = 0;
+		for (int i = 0; i < jobs[index].num_res; i++){
+			int res_i = find_resource_index(jobs[index].res_names[i]);
+			if (res_i == -1){ printf("Can't find the resource name in given resources\n"); pthread_mutex_unlock(&resources.f_lock); pthread_exit(NULL);}
+			if ((jobs[index].res_vals[i] <= resources.available[res_i]) && (jobs[index].res_vals[i] <= resources.res_vals[res_i])) r_checker++;
+		}
+		if (r_checker == jobs[index].num_res){
+			if (debug) printf("Job: %d got all needed resources\n", index);
+			for (int i = 0; i < jobs[index].num_res; i++){
+				int res_i = find_resource_index(jobs[index].res_names[i]);
+				int t_a = resources.available[res_i];
+				resources.available[res_i] -= jobs[index].res_vals[i];
+				resources.holds[res_i] += jobs[index].res_vals[i];
+			}
+		}
+		else{
+			pthread_mutex_unlock(&resources.f_lock);
+			if (debug) printf("Job: %d Didn't get enough resources\n", index);
+			goto try_again;
+		}
+		pthread_mutex_unlock(&resources.f_lock);
+		gettimeofday(&wait_e, 0);
+		waits[index] += timedifference_msec(wait_s, wait_e);
+		job_status[index] = RUN;
+		if (debug) printf("Job: %d In Running state\n", index);
+		struct timeval run_s, run_e;
+		gettimeofday(&run_s, 0); gettimeofday(&run_e, 0);
+		unsigned long difference = timedifference_msec(run_s, run_e);
+		while(difference <= jobs[index].busyTime){
+			gettimeofday(&run_e, 0);
+			difference = timedifference_msec(run_s, run_e);
+		}
+		
+		if (debug) printf("Job: %d Done with Running state\n", index);
+		pthread_mutex_lock(&resources.f_lock);
+		if (debug) printf("Job: %d got locked to reset the resources values\n");
+		for (int i = 0; i < jobs[index].num_res; i++){
+			int res_i = find_resource_index(jobs[index].res_names[i]);
+			resources.available[res_i] += jobs[index].res_vals[i];
+			resources.holds[res_i] -= jobs[index].res_vals[i];
+		}
+		if (debug) printf("Job: %d Done with resetting the values\n", index);
+		pthread_mutex_unlock(&resources.f_lock);
+		
+		job_status[index] = IDLE;
+		if (debug) printf("Job: %d In IDLE state\n", index);
+		struct timeval idle_s, idle_e;
+		gettimeofday(&idle_s, 0); gettimeofday(&idle_e, 0);
+		unsigned long i_diff = timedifference_msec(idle_s, idle_e);
+		while (i_diff <= jobs[index].idleTime){
+			gettimeofday(&idle_e, 0);
+			i_diff = timedifference_msec(idle_s, idle_e);
+		}
+		if (debug) printf("Job: %d Done with IDLE state\n", index);
+
+		struct timeval c_time; gettimeofday(&c_time, 0);
+		printf("job: %s (tid= %lu, iter= %d, time= %lu msec)\n", jobs[index].name, (unsigned long) pthread_self(), counters[index], timedifference_msec(start, c_time));
+		counters[index]++;
+	}
 	pthread_exit(NULL);
 }
 
@@ -66,6 +144,23 @@ void* monitor_funtion(void* arg){
 	if (debug) printf("Inside Monitor Thread\n");
 	// TODO: Need to be careful here
 	return NULL;
+}
+
+void print_exit_info(){
+	printf("System Resources: \n");
+	for (int i = 0; i < resources.res_max; i++){
+		printf("          %s: (maxAvail=   %d, held=   %d)\n", resources.res_names[i], resources.res_vals[i], 0);
+	}
+	printf("System Jobs: \n");
+	for (int i = 0; i < num_jobs; i++){
+		printf("[%d] %s (IDLE, runTime= %d msec, idleTime= %d msec):\n", i, jobs[i].name, jobs[i].busyTime, jobs[i].idleTime);
+		printf("          (tid= %lu)\n", (unsigned long)thread_id[i]);
+		for (int j = 0; j < jobs[i].num_res; j++){
+			printf("          %s: (needed=   %d, held=    %d)\n", jobs[i].res_names[j], jobs[i].res_vals[j], 0);
+		}
+		printf("          (RUN: %d times, WAIT: %lu msec)\n", counters[i], waits[i]);
+	}
+	return;
 }
 
 int main(int argv, char* argc[]){
@@ -202,7 +297,13 @@ int main(int argv, char* argc[]){
 		if (debug) printf("Thread %d exited\n", i);
 	}
 
+	err = pthread_cancel(thread_id[num_jobs]);
+	if (err != 0) printf("Can't cancel the montior thread\n");
+	if (debug) printf("Monitor Thread got canceled successfully\n");
+
 	gettimeofday(&current, 0);
 	printf("Running time= %lu msec\n", timedifference_msec(start, current));
+
+	print_exit_info();
 	return 0;
 }
