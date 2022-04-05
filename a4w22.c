@@ -49,7 +49,7 @@ pthread_t thread_id[MAXJOBS];
 
 struct timeval start, current;
 
-int debug = 1; // To see debug messages debug value = 1 else debug value = 0
+int debug = 0; // To see debug messages debug value = 1 else debug value = 0
 
 unsigned long timedifference_msec(struct timeval start, struct timeval current){
 	return (current.tv_sec - start.tv_sec) * 1000000 + current.tv_usec - start.tv_usec;
@@ -132,7 +132,7 @@ void* thread_function(void* arg){
 		if (debug) printf("Job: %d Done with IDLE state\n", index);
 
 		struct timeval c_time; gettimeofday(&c_time, 0);
-		printf("job: %s (tid= %lu, iter= %d, time= %lu msec)\n", jobs[index].name, (unsigned long) pthread_self(), counters[index], timedifference_msec(start, c_time));
+		printf("job: %s (tid= %lu, iter= %d, time= %lu msec)\n", jobs[index].name, (unsigned long) pthread_self(), counters[index]+1, timedifference_msec(start, c_time));
 		counters[index]++;
 	}
 	pthread_exit(NULL);
@@ -335,9 +335,9 @@ int main(int argv, char* argc[]){
 	if (err != 0) printf("Can't cancel the montior thread\n");
 	if (debug) printf("Monitor Thread got canceled successfully\n");
 
+	print_exit_info();
+
 	gettimeofday(&current, 0);
 	printf("Running time= %lu msec\n", timedifference_msec(start, current));
-
-	print_exit_info();
 	return 0;
 }
