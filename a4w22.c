@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <string.h>
+#include <pthread.h>
+#include <sys/time.h>
 
 #define MAXLINE 500
 #define MAXLINES 100
@@ -15,6 +17,15 @@ struct job{
 	int num_res;
 };
 
+struct res{
+	char res_names[MAXRESOURCES][MAXLINE];
+	int res_vals[MAXRESOURCES];
+	int available[MAXRESOURCES];
+	int holds[MAXRESOURCES];
+	int res_max;
+	pthread_mutex_t f_lock;
+};
+
 int monitorTime;
 int NITER;
 char inputlines[MAXLINES][MAXLINE];
@@ -24,6 +35,19 @@ char resource_line[MAXLINE];
 char job_lines[MAXJOBS][MAXLINE];
 int num_jobs = 0;
 struct job jobs[MAXJOBS];
+
+struct res resources;
+
+int counters[MAXJOBS] = {0};
+// 0: New || 1: WAIT || 2: RUN || 3: IDLE
+int job_status[MAXJOBS] = {3};
+int WAIT = 1, RUN = 2, IDLE = 3;
+
+struct timeval start, current;
+
+unsigned long timedifference_msec(struct timeval start, struct timeval current){
+	return (current.tv_sec - start.tv_sec) * 1000000 + current.tv_usec - start.tv_usec;
+}
 
 int debug = 1; // To see debug messages debug value = 1 else debug value = 0
 
@@ -40,6 +64,8 @@ int main(int argv, char* argc[]){
 	if (debug) printf("MonitorTime: %d\n", monitorTime);
 	sscanf(argc[3], "%d", &NITER);
 	if (debug) printf("NITER: %d\n", NITER);
+
+	gettimeofday(&start, 0);
 
 	// Opening inputfile for read
 	FILE* file = fopen(argc[1], "r");
@@ -67,25 +93,14 @@ int main(int argv, char* argc[]){
 		printf("Jobs:\n");
 		for (int i = 0; i < num_jobs; i++){
 			printf("%s\n", job_lines[i]);
-			// char * token = strtok(job_lines[i], " ");
-
-			// while( token != NULL){
-			// 	printf("%s \n", token);
-			// 	token = strtok(NULL, " ");
-			// }
 		}
 		printf("Resources:\n");
 		printf("%s\n", resource_line);
-		// char* token = strtok(resource_line, " ");
-		// while (token != NULL){
-		// 	printf("%s \n", token);
-		// 	token = strtok(NULL, " ");
-		// }
 	}
 
 	// Processing each job line
 	for (int i = 0; i < num_jobs; i++){
-		printf("Job number: %d\n", i);
+		if (debug) printf("Job number: %d\n", i);
 		int num_words = 0;
 		jobs[i].num_res = 0;
 		char* token = strtok(job_lines[i], " ");
@@ -94,7 +109,6 @@ int main(int argv, char* argc[]){
 			if (num_words == 1) {
 				strcpy(jobs[i].name, token);
 				if (debug) printf("name: %s\n", jobs[i].name);
-				// jobs[i].name = token;
 			}
 			if (num_words == 2){
 				temp = 0;
@@ -111,14 +125,12 @@ int main(int argv, char* argc[]){
 			if (num_words >= 4){
 				strcpy(job_res[counter], token);
 				counter++;
-				// if (debug) printf("%s \n", job_res[counter-1]);
 			}
 			token = strtok(NULL, " ");
 			num_words++;
 		}
 		for (int j = 0; j < counter; j++){
 			char* ne_token  = strtok(job_res[j], ":");
-			// jobs[i].res_names[jobs[i].num_res] = ne_token;
 			strcpy(jobs[i].res_names[jobs[i].num_res], ne_token);
 			ne_token = strtok(NULL, ":");
 			int temp1 = 0; sscanf(ne_token, "%d", &temp1);
@@ -126,30 +138,32 @@ int main(int argv, char* argc[]){
 			if (debug) printf("%s:%d\n", jobs[i].res_names[jobs[i].num_res-1], jobs[i].res_vals[jobs[i].num_res-1]);
 		}
 	}
+
+	char* token = strtok(resource_line, " ");
+	char temp_res[MAXJOBS][MAXLINE]; int counter = 0;
+	if (debug) printf("%s\n", token);
+	token = strtok(NULL, " ");
+	while(token != NULL){
+		strcpy(temp_res[counter], token);
+		if (debug) printf("%s\n", temp_res[counter]);
+		counter++;
+		token = strtok(NULL, " ");
+	}
+	if (debug) printf("%d\n", counter);
+	for (int j = 0; j < counter; j++){
+		char* ne_token = strtok(temp_res[j], ":");
+		strcpy(resources.res_names[resources.res_max], ne_token);
+		ne_token = strtok(NULL, ":");
+		int temp1 = 0; sscanf(ne_token, "%d", &temp1);
+		resources.res_vals[resources.res_max] = resources.available[resources.res_max] = temp1;
+		resources.holds[resources.res_max] = 0;
+		int t1 = resources.res_max;
+		resources.res_max++;
+		if (debug){
+			printf("Name: %s, Value: %d, available: %d, holds: %d\n", resources.res_names[t1], resources.res_vals[t1], resources.available[t1], resources.holds[t1]);
+		}
+	}
+	gettimeofday(&current, 0);
+	printf("Running time= %lu msec\n", timedifference_msec(start, current));
 	return 0;
 }
-
-
-			// switch(num_words){
-			// 	case 1:
-			// 		jobs[i].name = token;
-			// 		break;
-			// 	case 2:
-			// 		temp = 0;
-			// 		sscanf(token, "%d", &temp);
-			// 		jobs[i].busyTime = temp;
-			// 		if (debug) printf("busyTime: %d\n", temp);
-			// 		break;
-			// 	case 3:
-			// 		temp = 0;
-			// 		sscanf(token, "%d", &temp);
-			// 		jobs[i].idleTime = temp;
-			// 		if (debug) printf("idleTime: %d\n", temp);
-			// 		break;
-			// 	default:
-			// 		// job_res[counter++] = token;
-			// 		strcpy(job_res[counter], token);
-			// 		counter++;
-			// 		if (debug) printf("%s \n", job_res[counter-1]);
-			// 		break;
-			// }
