@@ -43,13 +43,30 @@ int counters[MAXJOBS] = {0};
 int job_status[MAXJOBS] = {3};
 int WAIT = 1, RUN = 2, IDLE = 3;
 
+pthread_t thread_id[MAXJOBS];
+
 struct timeval start, current;
+
+int debug = 1; // To see debug messages debug value = 1 else debug value = 0
 
 unsigned long timedifference_msec(struct timeval start, struct timeval current){
 	return (current.tv_sec - start.tv_sec) * 1000000 + current.tv_usec - start.tv_usec;
 }
 
-int debug = 1; // To see debug messages debug value = 1 else debug value = 0
+// Job Thread Function
+void* thread_function(void* arg){
+	int index = *(int *) arg;
+	if (debug) printf("Inside Thread %d\n", index);
+	pthread_exit(NULL);
+}
+
+// Monitor Thread Function
+void* monitor_funtion(void* arg){
+	int index = *(int *) arg;
+	if (debug) printf("Inside Monitor Thread\n");
+	// TODO: Need to be careful here
+	return NULL;
+}
 
 int main(int argv, char* argc[]){
 
@@ -163,6 +180,28 @@ int main(int argv, char* argc[]){
 		}
 	}
 	if (debug) printf("Max resources: %d\n", resources.res_max);
+
+	int args[MAXJOBS];
+
+	// Assigning a thread to each task
+	for (int i = 0; i < num_jobs; i++){
+		args[i] = i;
+		int err = pthread_create(&thread_id[i], NULL, thread_function, &args[i]);
+		if (err != 0) printf("Failed to create a thread %d\n", i);
+	}
+
+	// TODO: Need to make sure when the monitor thread is printing thread status is not being modified
+	// Creating Monitor Thread
+	args[num_jobs] = num_jobs;
+	int err = pthread_create(&thread_id[num_jobs], NULL, monitor_funtion, &args[num_jobs]);
+	if (err != 0) printf("Failed to create monitor thread\n");
+
+	for (int i = 0; i < num_jobs; i++){
+		err = pthread_join(thread_id[i], NULL);
+		if (err != 0) printf("Can't join with thread %d\n", i);
+		if (debug) printf("Thread %d exited\n", i);
+	}
+
 	gettimeofday(&current, 0);
 	printf("Running time= %lu msec\n", timedifference_msec(start, current));
 	return 0;
