@@ -8,6 +8,13 @@
 #define MAXJOBS 30
 #define MAXRESOURCES 10
 
+/*
+	Name: Revanth Atmakuri
+	Student id: 1684293
+	CCID: atmakuri
+	Assignment #4, Winter 2022
+*/
+
 struct job{
 	char name[MAXLINE];
 	int busyTime;
@@ -49,8 +56,13 @@ pthread_t thread_id[MAXJOBS];
 
 struct timeval start, current;
 
+int done = 1;
+
 int debug = 0; // To see debug messages debug value = 1 else debug value = 0
 
+/*
+	Returns the time difference between two provided timeval variables in unsigned long
+*/
 unsigned long timedifference_msec(struct timeval start, struct timeval current){
 	return (current.tv_sec - start.tv_sec) * 1000000 + current.tv_usec - start.tv_usec;
 }
@@ -63,7 +75,11 @@ int find_resource_index(char name[MAXLINE]){
 	return -1;
 }
 
-// TODO: Need to be careful with blocking calls pthread_mutex_lock && pthread_mutex_unlock
+
+/*	
+	Function for each job thread to follow after creations
+	Takes the index of the job as argument
+*/
 // Job Thread Function
 void* thread_function(void* arg){
 	int index = *(int *) arg;
@@ -138,13 +154,17 @@ void* thread_function(void* arg){
 	pthread_exit(NULL);
 }
 
+/*
+	Function for monitor Thread
+*/
+
 // Monitor Thread Function
 void* monitor_funtion(void* arg){
 	int index = *(int *) arg;
 	struct timeval m_start, m_curr;
 	gettimeofday(&m_start, 0); gettimeofday(&m_curr, 0);
 	unsigned long difference = timedifference_msec(m_start, m_curr);
-	while(13){
+	while(done){
 		if (difference >= monitorTime){
 			if (debug) printf("Inside Monitor Thread\n");
 			char wait_names[MAXJOBS][MAXLINE], run_names[MAXJOBS][MAXLINE], idle_names[MAXJOBS][MAXLINES];
@@ -175,17 +195,17 @@ void* monitor_funtion(void* arg){
 			difference = timedifference_msec(m_start, m_curr);
 		}
 	}
+	pthread_exit(NULL);
 
-	// TODO: Need to be careful here
-	return NULL;
+	// return NULL;
 }
 
 void print_exit_info(){
-	printf("System Resources: \n");
+	printf("\nSystem Resources: \n");
 	for (int i = 0; i < resources.res_max; i++){
 		printf("          %s: (maxAvail=   %d, held=   %d)\n", resources.res_names[i], resources.res_vals[i], 0);
 	}
-	printf("System Jobs: \n");
+	printf("\nSystem Jobs: \n");
 	for (int i = 0; i < num_jobs; i++){
 		printf("[%d] %s (IDLE, runTime= %d msec, idleTime= %d msec):\n", i, jobs[i].name, jobs[i].busyTime, jobs[i].idleTime);
 		printf("          (tid= %lu)\n", (unsigned long)thread_id[i]);
@@ -331,13 +351,16 @@ int main(int argv, char* argc[]){
 		if (debug) printf("Thread %d exited\n", i);
 	}
 
-	err = pthread_cancel(thread_id[num_jobs]);
+	done = 0;
+
+	// err = pthread_cancel(thread_id[num_jobs]);
+	err = pthread_join(thread_id[num_jobs], NULL);
 	if (err != 0) printf("Can't cancel the montior thread\n");
 	if (debug) printf("Monitor Thread got canceled successfully\n");
 
 	print_exit_info();
 
 	gettimeofday(&current, 0);
-	printf("Running time= %lu msec\n", timedifference_msec(start, current));
+	printf("\nRunning time= %lu msec\n", timedifference_msec(start, current));
 	return 0;
 }
