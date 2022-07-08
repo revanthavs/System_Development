@@ -8,13 +8,6 @@
 #define MAXJOBS 30
 #define MAXRESOURCES 10
 
-/*
-	Name: Revanth Atmakuri
-	Student id: 1684293
-	CCID: atmakuri
-	Assignment #4, Winter 2022
-*/
-
 struct job{
 	char name[MAXLINE];
 	int busyTime;
