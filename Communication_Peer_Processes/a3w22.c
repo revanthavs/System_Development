@@ -18,14 +18,6 @@
 #define MAX_IPaddress 1000
 #define MAXBUF 80
 
-/*
-    Name: Revanth Atmakuri
-    Student ID: 1684293
-    CCID: ATMAKURI
-    CMPUT 379, Winter 2022
-*/
-
-
 int debug = 1; // 1: Run debug messages 0: No debug messages
 
 struct psw
