@@ -1,13 +1,3 @@
-
-#------------------------------------------------
-#
-#  Name: Revanth Atmakuri
-#  Student ID: 1684293
-#  CCID: atmakuri
-#  Assignment #1, Winter 2022
-#  
-
-
 msh379: msh379.cpp
 		g++ -o msh379 msh379.cpp
 run:	msh379
