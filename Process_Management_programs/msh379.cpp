@@ -8,15 +8,6 @@
 
 using namespace std;
 
-/*
-
-  Name: Revanth Atmakuri
-  Student ID: 1684293
-  CCID: atmakuri
-  Assignment #1, Winter 2022
-
-*/
-
 void set_CPU_limit() {
   rlimit  rTimeLimit;
   rTimeLimit.rlim_cur = 1200; // Setting CPU time limit to 20 minutes
